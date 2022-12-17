@@ -26,7 +26,7 @@ public class Main {
 
         try {
             Dataset<Row> cleaned = DataProcessing.process(spark,trainingPath,trainingExtension);
-
+            MLProcess.process(cleaned);
         } catch (Exception e) {
             e.printStackTrace();
             spark.stop();
