@@ -1,6 +1,5 @@
 package org.example;
 
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -19,11 +18,15 @@ public class DataProcessing {
         //counting to remove
         long numberOfRows= df.count();
         long nullValues;
+        /*
+        //TODO : Too heavy to optimise
         for (String column : df.columns()){
             nullValues = df.where(df.col(column).equalTo("NA")).count();
             if (nullValues>0.4*numberOfRows && !dropped.contains(column)) dropped.add(column);
             System.out.println("with your dataset "+ column +" is also dropped because to many missing values");
         }
+
+         */
         //dropping column
         Dataset<Row> filtered = df;
         for(String s : dropped){
@@ -34,9 +37,12 @@ public class DataProcessing {
             filtered=filtered.where(s+" > -1");
             filtered = filtered.withColumn(s,filtered.col(s).cast("int"));
         }
+        //Categorization of CRSDepTime
+        filtered = filtered.withColumn("CRSDepTime",filtered.col("CRSDepTime").divide(20).cast("int").multiply(20).cast("int"));
 
         filtered.printSchema();
-        filtered.show(2);
+        df.show(10);
+        filtered.show(10);
 
         if (filtered.count()<1300) {
             System.out.println("After cleaning less than 1300 data remains");
