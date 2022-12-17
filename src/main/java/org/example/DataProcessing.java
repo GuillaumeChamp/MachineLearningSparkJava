@@ -36,7 +36,7 @@ public class DataProcessing {
             filtered = filtered.withColumn(s,filtered.col(s).cast("int"));
         }
         //Categorization of CRSDepTime
-        filtered = filtered.withColumn("CRSDepTime",filtered.col("CRSDepTime").divide(20).cast("int").multiply(20).cast("int"));
+        filtered = filtered.withColumn("CRSDepTime",filtered.col("CRSDepTime").divide(20).cast("int").multiply(20).cast("string"));
 
         filtered.printSchema();
         df.show(10);
