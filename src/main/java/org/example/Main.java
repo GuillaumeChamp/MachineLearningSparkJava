@@ -2,6 +2,8 @@ package org.example;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 public class Main {
@@ -23,7 +25,8 @@ public class Main {
                 .getOrCreate();
 
         try {
-            DataProcessing.process(spark,trainingPath,trainingExtension);
+            Dataset<Row> cleaned = DataProcessing.process(spark,trainingPath,trainingExtension);
+
         } catch (Exception e) {
             e.printStackTrace();
             spark.stop();
