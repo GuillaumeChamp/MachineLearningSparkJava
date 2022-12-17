@@ -11,7 +11,7 @@ public class Main {
     private final static String supportedFormat = "Supported format are : .csv";
     private static String trainingExtension;
 
-
+    //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
         if (!handleArguments(args)) return;
         SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").setMaster("local[2]").set("spark.executor.memory", "1g");
@@ -22,7 +22,12 @@ public class Main {
                 .config("spark.some.config.option", "some-value")
                 .getOrCreate();
 
-        DataProcessing.process(spark,trainingPath,trainingExtension);
+        try {
+            DataProcessing.process(spark,trainingPath,trainingExtension);
+        } catch (Exception e) {
+            e.printStackTrace();
+            spark.stop();
+        }
         spark.stop();
     }
 
