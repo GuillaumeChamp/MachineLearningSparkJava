@@ -10,7 +10,7 @@ import java.util.List;
 public class DataProcessing {
     private static final List<String> dropped = Arrays.asList("DepTime","Year","ArrTime","CRSArrTime","ActualElapsedTime","AirTime","Distance","TaxiIn","Cancelled","CancellationCode","Diverted","CarrierDelay","WeatherDelay","NASDelay","SecurityDelay","LateAircraftDelay");
     private static final List<String> toFilter = Arrays.asList("DepDelay","ArrDelay","CRSElapsedTime");
-    private static final List<String> toCheck = Arrays.asList("TaxiOut");
+    private static final List<String> toCheck = Arrays.asList("TaxiOut", "TailNum");
 
     protected static Dataset<Row> process(SparkSession spark, String trainingPath, String trainingExtension) throws Exception {
         Dataset<Row> df = spark.read().option("inferSchema", "true").option("header", "true").csv(trainingPath);
@@ -24,6 +24,9 @@ public class DataProcessing {
             if (nullValues>0.4*numberOfRows && !dropped.contains(column)) dropped.add(column);
             System.out.println("with your dataset "+ column +" is also dropped because to many missing values");
         }
+
+        //Before dropping Cancelled, remove rows with flights that didn't arrive
+        df = df.where("Cancelled == '0'");
 
         //dropping column
         Dataset<Row> filtered = df;
