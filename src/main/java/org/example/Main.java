@@ -25,7 +25,7 @@ public class Main {
     //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
         if (!handleArguments(args)) return;
-        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").setMaster("local[2]").set("spark.executor.memory", "1g");
+        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").setMaster("local[2]").set("spark.executor.memory", "8g");
         new SparkContext(conf);
         SparkSession spark = SparkSession
                 .builder()

@@ -11,6 +11,7 @@ import org.apache.spark.ml.feature.OneHotEncoder;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.regression.LinearRegression;
 import org.apache.spark.ml.regression.RandomForestRegressor;
+import org.apache.spark.ml.regression.DecisionTreeRegressor;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.tuning.ParamGridBuilder;
@@ -26,6 +27,8 @@ public class MLProcess {
     private static final String[] column_cat = new String[]{"CRSDepTime","UniqueCarrier","FlightNum","TailNum","Origin","Dest"};
     private static final String[] indexed = new String[]{"CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
+    private static final String[] encoded_assembled = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e","Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
+
     private static final String sep = File.separator;
     protected static CrossValidatorModel process(Dataset<Row> cleaned, Dataset<Row> test){
 
@@ -43,63 +46,100 @@ public class MLProcess {
                 .setOutputCols(encoded)
                 .setHandleInvalid("keep");
         VectorAssembler assembler = new VectorAssembler() //Numerical
-                .setInputCols(assembled)
+                .setInputCols(encoded_assembled)
                 .setOutputCol("features");
-        VectorAssembler assembler2 = new VectorAssembler() // Categorical (One-Hot Encoded)
+        /*VectorAssembler assembler2 = new VectorAssembler() // Categorical (One-Hot Encoded)
                 .setInputCols(encoded)
                 .setOutputCol("features2");
         VectorAssembler assembler3 = new VectorAssembler() // All
                 .setInputCols(new String[]{"features", "features2"})
-                .setOutputCol("features3");
+                .setOutputCol("features3");*/
         Normalizer normalizer = new Normalizer()
-                .setInputCol("features3")
+                .setInputCol("features")
                 .setOutputCol("NormalizedFeatures"); //p=2
         LinearRegression lr = new LinearRegression()
                 .setMaxIter(10)
                 .setRegParam(0.3)
                 .setElasticNetParam(0.8)
                 .setFeaturesCol("NormalizedFeatures")
-                .setLabelCol("ArrDelay");
+                .setLabelCol("ArrDelay")
+                .setPredictionCol("prediction_lr");
         RandomForestRegressor rm = new RandomForestRegressor()
-                .setLabelCol("prediction");
+                .setFeaturesCol("NormalizedFeatures")
+                .setLabelCol("ArrDelay")
+                .setPredictionCol("prediction_rm")
+                .setMaxDepth(3)
+                //.setMaxMemoryInMB(3000)
+                .setNumTrees(10);
         Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{
                         indexer
                         , imputer
                         , encoder
                         , assembler
-                        , assembler2
-                        , assembler3
+                        //, assembler2
+                        //, assembler3
                         , normalizer
                         , lr
+                        , rm
                 });
+
 
         //Cross validation
         ParamMap[] paramGrid = new ParamGridBuilder()
                 .addGrid(lr.regParam(), new double[] {0.3, 0.03})
                 .build();
 
+        ParamMap[] paramGrid_rm = new ParamGridBuilder()
+                .addGrid(rm.maxDepth(), new int[] {2, 3, 4})
+                .addGrid(rm.numTrees(), new int[] {10, 15})
+                .build();
+
         CrossValidator cv = new CrossValidator()
                 .setEstimator(pipeline)
                 .setEvaluator(new RegressionEvaluator()
                         .setLabelCol("ArrDelay")
-                        .setPredictionCol("prediction")
+                        .setPredictionCol("prediction_lr")
                         .setMetricName("rmse"))
                 .setEstimatorParamMaps(paramGrid)
                 .setNumFolds(5)  // Use 3+ in practice
                 .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
 
+        CrossValidator cv_rm = new CrossValidator()
+                .setEstimator(pipeline)
+                .setEvaluator(new RegressionEvaluator()
+                        .setLabelCol("ArrDelay")
+                        .setPredictionCol("prediction_rm")
+                        .setMetricName("rmse"))
+                .setEstimatorParamMaps(paramGrid_rm)
+                .setNumFolds(5)  // Use 3+ in practice
+                .setParallelism(1);  // Evaluate up to 2 parameter settings in parallel
+
         // Run cross-validation, and choose the best set of parameters.
         CrossValidatorModel cvModel = cv.fit(cleaned);
-        //Use the pipeline
-        cvModel.transform(test).show();
-        Dataset<Row> predictions = cvModel.transform(test);
-        predictions.select("ArrDelay", "prediction").show(50);
+        CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
 
+        Dataset<Row> predictions = cvModel.transform(test);
+        Dataset<Row> predictions_rm = cvModel_rm.transform(test);
         RegressionEvaluator evaluatorMSE = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
-                .setPredictionCol("prediction")
-                .setMetricName("mse");
+                .setPredictionCol("prediction_lr")
+                .setMetricName("rmse");
+        Double RMSE_lr = evaluatorMSE.evaluate(predictions);
+
+
+        cvModel.transform(test).show();
+        System.out.println("Linear regression RMSE:");
+        System.out.println(RMSE_lr);
+
+        System.out.println("Random Forest RMSE:");
+        RegressionEvaluator evaluatorMSE_rm = new RegressionEvaluator()
+                .setLabelCol("ArrDelay")
+                .setPredictionCol("prediction_rm")
+                .setMetricName("rmse");
         System.out.println(evaluatorMSE.evaluate(predictions));
+        predictions.select("ArrDelay", "prediction_lr").show(10);
+        predictions_rm.select("ArrDelay", "prediction_rm").show(10);
+
 
         /*try {
             cvModel.save(Main.outPath+"cvModel/"+sep);
