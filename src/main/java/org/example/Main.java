@@ -44,6 +44,7 @@ public class Main {
             e.printStackTrace();
             spark.stop();
         }
+
         spark.stop();
     }
 
@@ -59,12 +60,12 @@ public class Main {
             return false;
         }
         if (!args[0].endsWith(".csv")){
-            System.out.println("training set in non supported format. " + supportedFormat);
+            System.out.println("Training set in a unsupported format. " + supportedFormat);
             return false;
         }
         trainingPath = args[0];
         if (!args[1].endsWith(".csv")){
-            System.out.println("testing set in non supported format. " + supportedFormat);
+            System.out.println("Testing set in a unsupported format. " + supportedFormat);
             //Extract extension
             String[] tamp = args[1].split("\\.");
             trainingExtension= tamp[tamp.length-1];
@@ -78,14 +79,15 @@ public class Main {
         }
         testingPath = args[1];
         if (args[1].equals(args[0])){
-            System.out.println("you will use the same set for training and testing this is not recommended but work fine");
-            log.info("you will use the same set for training and testing this is not recommended but work fine");
+            System.out.println("You will use the same set for training and testing. This is not recommended, but it will work.");
+            log.info("You will use the same set for training and testing. This is not recommended, but it will work.");
         }
         return true;
     }
 
     private static void createLog() throws IOException {
-        FileHandler fh = new FileHandler("C:/temp/test/MyLogFile.log");
+        FileHandler fh = new FileHandler(outPath+"MyLogFile.log", false);
+        log = Logger.getLogger("");
         log.addHandler(fh);
         SimpleFormatter formatter = new SimpleFormatter();
         fh.setFormatter(formatter);

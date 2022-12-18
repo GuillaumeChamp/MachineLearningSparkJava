@@ -26,41 +26,10 @@ public class MLProcess {
     private static final String[] column_cat = new String[]{"CRSDepTime","UniqueCarrier","FlightNum","TailNum","Origin","Dest"};
     private static final String[] indexed = new String[]{"CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
-    private static LinearRegression lr;
     private static final String sep = File.separator;
     protected static CrossValidatorModel process(Dataset<Row> cleaned, Dataset<Row> test){
-        //create the stages
-        Pipeline pipeline = createPipeline();
-        
-        //Cross validation
-        ParamMap[] paramGrid = new ParamGridBuilder()
-                .addGrid(lr.regParam(), new double[] {0.1, 0.01})
-                .build();
 
-        CrossValidator cv = new CrossValidator()
-                .setEstimator(pipeline)
-                .setEvaluator(new RegressionEvaluator().setLabelCol("ArrDelay"))
-                .setEstimatorParamMaps(paramGrid)
-                .setNumFolds(5)  // Use 3+ in practice
-                .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
-
-        // Run cross-validation, and choose the best set of parameters.
-        CrossValidatorModel cvModel = cv.fit(cleaned);
-        //Use the pipeline
-        cvModel.transform(test).show();
-        try {
-            cvModel.save(Main.outPath+"cvModel"+sep);
-        } catch (IOException e) {
-            System.out.println("Unable to save the model");
-        }
-        return cvModel;
-    }
-
-    /**
-     * Create the pipeline with all the stage on it
-     * @return configured pipeline
-     */
-    private static Pipeline createPipeline() {
+        //create the stages of the pipeline
         Imputer imputer = new Imputer()
                 .setStrategy("mode")
                 .setInputCols(imputedCols)
@@ -85,7 +54,7 @@ public class MLProcess {
         Normalizer normalizer = new Normalizer()
                 .setInputCol("features3")
                 .setOutputCol("NormalizedFeatures"); //p=2
-        lr = new LinearRegression()
+        LinearRegression lr = new LinearRegression()
                 .setMaxIter(10)
                 .setRegParam(0.3)
                 .setElasticNetParam(0.8)
@@ -93,16 +62,52 @@ public class MLProcess {
                 .setLabelCol("ArrDelay");
         RandomForestRegressor rm = new RandomForestRegressor()
                 .setLabelCol("prediction");
-        return new Pipeline().setStages(new PipelineStage[] {
+        Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{
                         indexer
-                        ,imputer
-                        ,encoder
-                        ,assembler
-                        ,assembler2
-                        ,assembler3
-                        ,normalizer
-                        ,lr
-                        //,rm
+                        , imputer
+                        , encoder
+                        , assembler
+                        , assembler2
+                        , assembler3
+                        , normalizer
+                        , lr
                 });
+
+        //Cross validation
+        ParamMap[] paramGrid = new ParamGridBuilder()
+                .addGrid(lr.regParam(), new double[] {0.3, 0.03})
+                .build();
+
+        CrossValidator cv = new CrossValidator()
+                .setEstimator(pipeline)
+                .setEvaluator(new RegressionEvaluator()
+                        .setLabelCol("ArrDelay")
+                        .setPredictionCol("prediction")
+                        .setMetricName("rmse"))
+                .setEstimatorParamMaps(paramGrid)
+                .setNumFolds(5)  // Use 3+ in practice
+                .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
+
+        // Run cross-validation, and choose the best set of parameters.
+        CrossValidatorModel cvModel = cv.fit(cleaned);
+        //Use the pipeline
+        cvModel.transform(test).show();
+        Dataset<Row> predictions = cvModel.transform(test);
+        predictions.select("ArrDelay", "prediction").show(50);
+
+        RegressionEvaluator evaluatorMSE = new RegressionEvaluator()
+                .setLabelCol("ArrDelay")
+                .setPredictionCol("prediction")
+                .setMetricName("mse");
+        System.out.println(evaluatorMSE.evaluate(predictions));
+
+        /*try {
+            cvModel.save(Main.outPath+"cvModel/"+sep);
+        } catch (IOException e) {
+            System.out.println("Unable to save the model");
+        }*/
+        return cvModel;
     }
+
+
 }

@@ -45,6 +45,8 @@ public class DataProcessing {
         df.show(10);
         filtered.show(10);
 
+        filtered.summary();
+
         if (filtered.count()<1300) {
             System.out.println("After cleaning less than 1300 data remains");
             throw new Exception("Not Enough Data Remaining");
