@@ -17,14 +17,50 @@ import org.apache.spark.ml.tuning.ParamGridBuilder;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
+import java.io.File;
+import java.io.IOException;
+
 public class MLProcess {
     private static final String[] imputedCols = new String[]{"Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut","CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] assembled = new String[]{"Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
     private static final String[] column_cat = new String[]{"CRSDepTime","UniqueCarrier","FlightNum","TailNum","Origin","Dest"};
     private static final String[] indexed = new String[]{"CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
-    protected static CrossValidatorModel process(Dataset<Row> cleaned){
+    private static LinearRegression lr;
+    private static final String sep = File.separator;
+    protected static CrossValidatorModel process(Dataset<Row> cleaned, Dataset<Row> test){
         //create the stages
+        Pipeline pipeline = createPipeline();
+        
+        //Cross validation
+        ParamMap[] paramGrid = new ParamGridBuilder()
+                .addGrid(lr.regParam(), new double[] {0.1, 0.01})
+                .build();
+
+        CrossValidator cv = new CrossValidator()
+                .setEstimator(pipeline)
+                .setEvaluator(new RegressionEvaluator().setLabelCol("ArrDelay"))
+                .setEstimatorParamMaps(paramGrid)
+                .setNumFolds(5)  // Use 3+ in practice
+                .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
+
+        // Run cross-validation, and choose the best set of parameters.
+        CrossValidatorModel cvModel = cv.fit(cleaned);
+        //Use the pipeline
+        cvModel.transform(test).show();
+        try {
+            cvModel.save(Main.outPath+"cvModel"+sep);
+        } catch (IOException e) {
+            System.out.println("Unable to save the model");
+        }
+        return cvModel;
+    }
+
+    /**
+     * Create the pipeline with all the stage on it
+     * @return configured pipeline
+     */
+    private static Pipeline createPipeline() {
         Imputer imputer = new Imputer()
                 .setStrategy("mode")
                 .setInputCols(imputedCols)
@@ -49,7 +85,7 @@ public class MLProcess {
         Normalizer normalizer = new Normalizer()
                 .setInputCol("features3")
                 .setOutputCol("NormalizedFeatures"); //p=2
-        LinearRegression lr = new LinearRegression()
+        lr = new LinearRegression()
                 .setMaxIter(10)
                 .setRegParam(0.3)
                 .setElasticNetParam(0.8)
@@ -57,9 +93,7 @@ public class MLProcess {
                 .setLabelCol("ArrDelay");
         RandomForestRegressor rm = new RandomForestRegressor()
                 .setLabelCol("prediction");
-        //Create the pipeline
-        Pipeline pipeline = new Pipeline()
-                .setStages(new PipelineStage[] {
+        return new Pipeline().setStages(new PipelineStage[] {
                         indexer
                         ,imputer
                         ,encoder
@@ -70,23 +104,5 @@ public class MLProcess {
                         ,lr
                         //,rm
                 });
-        
-        //Cross validation
-        ParamMap[] paramGrid = new ParamGridBuilder()
-                .addGrid(lr.regParam(), new double[] {0.1, 0.01})
-                .build();
-
-        CrossValidator cv = new CrossValidator()
-                .setEstimator(pipeline)
-                .setEvaluator(new RegressionEvaluator().setLabelCol("ArrDelay"))
-                .setEstimatorParamMaps(paramGrid)
-                .setNumFolds(10)  // Use 3+ in practice
-                .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
-
-        // Run cross-validation, and choose the best set of parameters.
-        CrossValidatorModel cvModel = cv.fit(cleaned);
-        //Use the pipeline
-        cvModel.transform(cleaned).show();
-        return cvModel;
     }
 }

@@ -2,9 +2,16 @@ package org.example;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
+import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+
+import java.io.IOException;
+import java.util.Objects;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Main {
     protected static String trainingPath;
@@ -12,6 +19,8 @@ public class Main {
     private final static String schema = "java -jar application.jar trainingPath testingPath OutputPath";
     private final static String supportedFormat = "Supported format are : .csv";
     private static String trainingExtension;
+    protected static String outPath = "./";
+    protected static Logger log;
 
     //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
@@ -26,7 +35,11 @@ public class Main {
 
         try {
             Dataset<Row> cleaned = DataProcessing.process(spark,trainingPath,trainingExtension);
-            MLProcess.process(cleaned);
+            Dataset<Row> test;
+            if (Objects.equals(trainingPath, testingPath)) test = cleaned;
+            else test = DataProcessing.process(spark,trainingPath,trainingExtension);
+            CrossValidatorModel cv = MLProcess.process(cleaned,test);
+            PerformanceTest.test(cv);
         } catch (Exception e) {
             e.printStackTrace();
             spark.stop();
@@ -57,10 +70,25 @@ public class Main {
             trainingExtension= tamp[tamp.length-1];
             return false;
         }
+        if (args.length>=3) outPath = args[2];
+        try {
+            createLog();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         testingPath = args[1];
         if (args[1].equals(args[0])){
             System.out.println("you will use the same set for training and testing this is not recommended but work fine");
+            log.info("you will use the same set for training and testing this is not recommended but work fine");
         }
         return true;
+    }
+
+    private static void createLog() throws IOException {
+        FileHandler fh = new FileHandler("C:/temp/test/MyLogFile.log");
+        log.addHandler(fh);
+        SimpleFormatter formatter = new SimpleFormatter();
+        fh.setFormatter(formatter);
+
     }
 }
