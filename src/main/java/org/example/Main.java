@@ -21,16 +21,23 @@ public class Main {
     private static String trainingExtension;
     protected static String outPath = "./";
     protected static Logger log;
+    private static boolean local=false;
 
     //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
         if (!handleArguments(args)) return;
-        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").setMaster("local[2]").set("spark.executor.memory", "8g");
-        new SparkContext(conf);
+        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").set("spark.executor.memory", "8g");
+        if (local) conf = conf.setMaster("local[2]");
+        try {
+            new SparkContext(conf);
+        }catch (Exception e){
+            conf = conf.setMaster("local[2]");
+            new SparkContext(conf);
+        }
+
         SparkSession spark = SparkSession
                 .builder()
-                .appName("Java Spark SQL basic example")
-                .config("spark.some.config.option", "some-value")
+                .appName("FlightDelayLearningSQL")
                 .getOrCreate();
 
         try {
@@ -72,6 +79,7 @@ public class Main {
             return false;
         }
         if (args.length>=3) outPath = args[2];
+        if (args.length>=4) local=args[3].equals("local");
         try {
             createLog();
         } catch (IOException e) {
