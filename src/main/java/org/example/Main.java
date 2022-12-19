@@ -7,6 +7,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
 import java.util.logging.FileHandler;
@@ -78,7 +79,8 @@ public class Main {
             trainingExtension= tamp[tamp.length-1];
             return false;
         }
-        if (args.length>=3) outPath = args[2];
+        if (args.length>=3)
+            if (new File(args[2]).isDirectory()) outPath = args[2];
         if (args.length>=4) local=args[3].equals("local");
         try {
             createLog();

@@ -136,6 +136,7 @@ public class MLProcess {
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMetricName("rmse");
+        Main.log.info(String.valueOf(evaluatorMSE.evaluate(predictions)));
         System.out.println(evaluatorMSE.evaluate(predictions));
         predictions.select("ArrDelay", "prediction_lr").show(10);
         predictions_rm.select("ArrDelay", "prediction_rm").show(10);
