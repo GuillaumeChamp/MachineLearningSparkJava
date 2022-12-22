@@ -24,7 +24,7 @@ import java.io.IOException;
 public class MLProcess {
     private static final String[] imputedCols = new String[]{"Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut","CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] assembled = new String[]{"Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
-    private static final String[] column_cat = new String[]{"CRSDepTime","UniqueCarrier","FlightNum","TailNum","Origin","Dest"};
+    private static final String[] column_cat = new String[]{"CRSDepTime_cat","UniqueCarrier","FlightNum","TailNum","Origin","Dest"};
     private static final String[] indexed = new String[]{"CRSDepTime_i","UniqueCarrier_i","FlightNum_i","TailNum_i","Origin_i","Dest_i"};
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
     private static final String[] encoded_assembled = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e","Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
@@ -48,12 +48,6 @@ public class MLProcess {
         VectorAssembler assembler = new VectorAssembler() //Numerical
                 .setInputCols(encoded_assembled)
                 .setOutputCol("features");
-        /*VectorAssembler assembler2 = new VectorAssembler() // Categorical (One-Hot Encoded)
-                .setInputCols(encoded)
-                .setOutputCol("features2");
-        VectorAssembler assembler3 = new VectorAssembler() // All
-                .setInputCols(new String[]{"features", "features2"})
-                .setOutputCol("features3");*/
         Normalizer normalizer = new Normalizer()
                 .setInputCol("features")
                 .setOutputCol("NormalizedFeatures"); //p=2
@@ -69,15 +63,12 @@ public class MLProcess {
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMaxDepth(3)
-                //.setMaxMemoryInMB(3000)
                 .setNumTrees(10);
         Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{
                         indexer
                         , imputer
                         , encoder
                         , assembler
-                        //, assembler2
-                        //, assembler3
                         , normalizer
                         , lr
                         , rm
@@ -86,7 +77,7 @@ public class MLProcess {
 
         //Cross validation
         ParamMap[] paramGrid = new ParamGridBuilder()
-                .addGrid(lr.regParam(), new double[] {0.3, 0.03})
+                .addGrid(lr.regParam(), new double[] {0,1, 0.3, 0.03})
                 .build();
 
         ParamMap[] paramGrid_rm = new ParamGridBuilder()
@@ -112,42 +103,39 @@ public class MLProcess {
                         .setMetricName("rmse"))
                 .setEstimatorParamMaps(paramGrid_rm)
                 .setNumFolds(5)  // Use 3+ in practice
-                .setParallelism(1);  // Evaluate up to 2 parameter settings in parallel
+                .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
 
         // Run cross-validation, and choose the best set of parameters.
-        CrossValidatorModel cvModel = cv.fit(cleaned);
+        CrossValidatorModel cvModel_lr = cv_lr.fit(cleaned);
         CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
 
-        Dataset<Row> predictions = cvModel.transform(test);
+        Dataset<Row> predictions = cvModel_lr.transform(test);
         Dataset<Row> predictions_rm = cvModel_rm.transform(test);
-        RegressionEvaluator evaluatorMSE = new RegressionEvaluator()
+        RegressionEvaluator evaluatorRMSE_lr = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_lr")
                 .setMetricName("rmse");
-        Double RMSE_lr = evaluatorMSE.evaluate(predictions);
+        Double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions);
 
-
-        cvModel.transform(test).show();
-        System.out.println("Linear regression RMSE:");
-        System.out.println(RMSE_lr);
-
-        System.out.println("Random Forest RMSE:");
-        RegressionEvaluator evaluatorMSE_rm = new RegressionEvaluator()
+        RegressionEvaluator evaluatorRMSE_rm = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMetricName("rmse");
-        Main.log.info(String.valueOf(evaluatorMSE.evaluate(predictions)));
-        System.out.println(evaluatorMSE.evaluate(predictions));
+        Double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions);
+
+        System.out.println("Linear regression RMSE:");
+        System.out.println(RMSE_lr);
+        System.out.println("Random Forest RMSE:");
+        System.out.println(RMSE_rf);
+
         predictions.select("ArrDelay", "prediction_lr").show(10);
         predictions_rm.select("ArrDelay", "prediction_rm").show(10);
 
-
-        /*try {
-            cvModel.save(Main.outPath+"cvModel/"+sep);
-        } catch (IOException e) {
-            System.out.println("Unable to save the model");
-        }*/
-        return cvModel;
+        if (RMSE_lr <= RMSE_rf) {
+            return cvModel_lr;
+        }
+        else {
+            return cvModel_rm;
     }
 
 
