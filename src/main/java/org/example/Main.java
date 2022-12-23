@@ -19,8 +19,8 @@ public class Main {
     private static String testingExtension;
     protected static String outPath = "./";
     private static boolean local=false;
+    protected static Boolean randomTree= false;
 
-    //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
         if (!handleArguments(args)) return;
         SparkConf conf = new SparkConf().setAppName("FlightDelayLearning")
@@ -83,6 +83,7 @@ public class Main {
         if (args.length>=3)
             if (new File(args[2]).isDirectory()) outPath = args[2];
         if (args.length>=4) local=args[3].equals("local");
+        if (args.length>=5) randomTree=args[4].equals("randomTree");
         try {
             createLog();
         } catch (IOException e) {

@@ -26,7 +26,7 @@ public class MLProcess {
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
     private static final String[] encoded_assembled = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e","Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
 
-    protected static void process(Dataset<Row> cleaned, Dataset<Row> test){
+    protected static void process(Dataset<Row> cleaned, Dataset<Row> test) {
         //create the stages of the pipeline
         Imputer imputer = new Imputer()
                 .setStrategy("mode")
@@ -60,14 +60,13 @@ public class MLProcess {
                 .setMaxDepth(3)
                 .setNumTrees(20);
         Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{
-                        indexer
-                        , imputer
-                        , encoder
-                        , assembler
-                        , normalizer
-                        , lr
-                        , rm
-                });
+                indexer
+                , imputer
+                , encoder
+                , assembler
+                , normalizer
+                , lr
+        });
         Pipeline pipeline1 = new Pipeline().setStages(new PipelineStage[]{
                 indexer
                 , imputer
@@ -77,15 +76,14 @@ public class MLProcess {
                 , rm
         });
 
-
         //Cross validation
         ParamMap[] paramGrid = new ParamGridBuilder()
-                .addGrid(lr.regParam(), new double[] {0,1, 0.3, 0.03})
+                .addGrid(lr.regParam(), new double[]{0, 1, 0.3, 0.03})
                 .build();
 
         ParamMap[] paramGrid_rm = new ParamGridBuilder()
-                .addGrid(rm.maxDepth(), new int[] {2, 3, 4})
-                .addGrid(rm.numTrees(), new int[] {20, 25})
+                .addGrid(rm.maxDepth(), new int[]{2, 3, 4})
+                .addGrid(rm.numTrees(), new int[]{20, 25})
                 .build();
 
         CrossValidator cv_lr = new CrossValidator()
@@ -111,24 +109,18 @@ public class MLProcess {
 
         // Run cross-validation, and choose the best set of parameters.
         CrossValidatorModel cvModel_lr = cv_lr.fit(cleaned);
-        //CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
 
         Dataset<Row> predictions_lr = cvModel_lr.transform(test);
-        //Dataset<Row> predictions_rm = cvModel_rm.transform(test);
+
         RegressionEvaluator evaluatorRMSE_lr = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_lr")
                 .setMetricName("rmse");
         double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions_lr);
 
-        RegressionEvaluator evaluatorRMSE_rm = new RegressionEvaluator()
-                .setLabelCol("ArrDelay")
-                .setPredictionCol("prediction_rm")
-                .setMetricName("rmse");
-        //double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
 
-        LinearRegressionModel model_lr = (LinearRegressionModel)cvModel_lr.bestModel();
-        RandomForestRegressionModel model_rm = (RandomForestRegressionModel)cvModel_lr.bestModel();
+        LinearRegressionModel model_lr = (LinearRegressionModel) cvModel_lr.bestModel();
+        MyLog.log(String.valueOf(((LinearRegressionModel) cvModel_lr.bestModel()).getRegParam()));
 
         MyLog.log("Linear regression best RMSE:");
         MyLog.log(Double.toString(RMSE_lr));
@@ -138,27 +130,32 @@ public class MLProcess {
         MyLog.log("regParam:");
         MyLog.log(String.valueOf(model_lr.getRegParam()));
 
-        MyLog.log("Random Forest best RMSE:");
-        //MyLog.log(String.valueOf(RMSE_rf));
-        MyLog.log("Random Forest chosen parameters:");
-        MyLog.log("numTrees:");
-        MyLog.log(String.valueOf(model_rm.getNumTrees()));
-        MyLog.log("maxDepth:");
-        MyLog.log(String.valueOf(model_rm.getMaxDepth()));
-
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
-        //predictions_rm.select("ArrDelay", "prediction_rm").show(10);
+        if (Main.randomTree) {
+            CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
+            Dataset<Row> predictions_rm = cvModel_rm.transform(test);
+            RegressionEvaluator evaluatorRMSE_rm = new RegressionEvaluator()
+                    .setLabelCol("ArrDelay")
+                    .setPredictionCol("prediction_rm")
+                    .setMetricName("rmse");
+            double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
+            RandomForestRegressionModel model_rm = (RandomForestRegressionModel) cvModel_rm.bestModel();
+            MyLog.log("Random Forest best RMSE:");
+            MyLog.log(String.valueOf(RMSE_rf));
+            MyLog.log("Random Forest chosen parameters:");
+            MyLog.log("numTrees:");
+            MyLog.log(String.valueOf(model_rm.getNumTrees()));
+            MyLog.log("maxDepth:");
+            MyLog.log(String.valueOf(model_rm.getMaxDepth()));
+            if (RMSE_lr <= RMSE_rf) {
+                predictions_lr.write().format("csv").save(Main.outPath + "predict.csv");
+            } else {
+                predictions_rm.write().format("csv").save(Main.outPath + "predict.csv");
+            }
+        } else {
 
-
-
-        //if (RMSE_lr <= RMSE_rf) {
-            predictions_lr.write().format("csv").save(Main.outPath+"predict.csv");
-       // }
-        //else {
-         //   predictions_rm.write().format("csv").save(Main.outPath+"predict.csv");
-        //}
+            predictions_lr.write().format("csv").save(Main.outPath + "predict.csv");
+        }
     }
-
-
 
 }
