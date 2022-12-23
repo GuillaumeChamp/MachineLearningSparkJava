@@ -57,7 +57,7 @@ public class MLProcess {
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMaxDepth(3)
-                .setNumTrees(10);
+                .setNumTrees(20);
         Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{
                         indexer
                         , imputer
@@ -76,7 +76,7 @@ public class MLProcess {
 
         ParamMap[] paramGrid_rm = new ParamGridBuilder()
                 .addGrid(rm.maxDepth(), new int[] {2, 3, 4})
-                .addGrid(rm.numTrees(), new int[] {10, 15})
+                .addGrid(rm.numTrees(), new int[] {20, 25})
                 .build();
 
         CrossValidator cv_lr = new CrossValidator()
