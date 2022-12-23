@@ -15,9 +15,11 @@ public class DataProcessing {
     protected static Dataset<Row> process(SparkSession spark, String trainingPath, String trainingExtension) throws Exception {
         Dataset<Row> df = null;
         if (trainingExtension.equals("csv")) df = spark.read().option("inferSchema", "true").option("header", "true").csv(trainingPath);
+        if (trainingExtension.equals("json")) df = spark.read().json(trainingPath);
         //spark.read().format(trainingExtension).option("inferSchema",true).option("header", "true").load(trainingPath);
 
         //counting to remove
+        assert df != null;
         long numberOfRows= df.count();
         long nullValues;
         for (String column : toCheck){
@@ -41,8 +43,6 @@ public class DataProcessing {
         }
         //Categorization of CRSDepTime
         filtered = filtered.withColumn("CRSDepTime_cat",filtered.col("CRSDepTime").divide(20).cast("int").multiply(20).cast("string"));
-
-        filtered.printSchema();
         filtered.summary();
 
         if (filtered.count()<1300) {

@@ -17,8 +17,9 @@ public class Main {
     protected static String trainingPath;
     protected static String testingPath;
     private final static String schema = "java -jar application.jar trainingPath testingPath OutputPath";
-    private final static String supportedFormat = "Supported format are : .csv";
+    private final static String supportedFormat = "Supported format are : .csv .json";
     private static String trainingExtension;
+    private static String testingExtension;
     protected static String outPath = "./";
     protected static Logger log;
     private static boolean local=false;
@@ -48,7 +49,7 @@ public class Main {
             Dataset<Row> cleaned = DataProcessing.process(spark,trainingPath,trainingExtension);
             Dataset<Row> test;
             if (Objects.equals(trainingPath, testingPath)) test = cleaned;
-            else test = DataProcessing.process(spark,trainingPath,trainingExtension);
+            else test = DataProcessing.process(spark,testingPath,testingExtension);
             MLProcess.process(cleaned, test);
         } catch (Exception e) {
             e.printStackTrace();
@@ -69,18 +70,20 @@ public class Main {
             System.out.println(schema);
             return false;
         }
-        if (!args[0].endsWith(".csv")){
+        if (!args[0].endsWith(".csv") && !args[0].endsWith(".json")){
             System.out.println("Training set in a unsupported format. " + supportedFormat);
             return false;
         }
         trainingPath = args[0];
-        if (!args[1].endsWith(".csv")){
+        if (!args[1].endsWith(".csv")&& !args[1].endsWith(".json")){
             System.out.println("Testing set in a unsupported format. " + supportedFormat);
             return false;
         }
         //Extract extension
         String[] tamp = args[0].split("\\.");
         trainingExtension= tamp[tamp.length-1];
+        tamp = args[1].split("\\.");
+        testingExtension= tamp[tamp.length-1];
         if (args.length>=3)
             if (new File(args[2]).isDirectory()) outPath = args[2];
         if (args.length>=4) local=args[3].equals("local");
