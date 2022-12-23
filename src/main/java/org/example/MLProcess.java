@@ -153,7 +153,12 @@ public class MLProcess {
             predictions_lr.select("ArrDelay", "prediction_lr").write().format("csv").save(Main.outPath + "predict.csv");
         }
         assert df != null;
-        df.write().format("csv").save(Main.outPath + "predict.csv");
+        try {
+            df.write().format("csv").save(Main.outPath + "predict.csv");
+        }catch (Exception e){
+            MyLog.log("unable to save due to a hadoop issue");
+        }
+
     }
 
 }
