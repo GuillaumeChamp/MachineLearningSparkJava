@@ -26,8 +26,7 @@ public class MLProcess {
     private static final String[] encoded = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e"};
     private static final String[] encoded_assembled = new String[]{"CRSDepTime_e","UniqueCarrier_e","FlightNum_e","TailNum_e","Origin_e","Dest_e","Month","DayofMonth","DayOfWeek","CRSElapsedTime","DepDelay","TaxiOut"};
 
-    protected static CrossValidatorModel process(Dataset<Row> cleaned, Dataset<Row> test){
-
+    protected static void process(Dataset<Row> cleaned, Dataset<Row> test){
         //create the stages of the pipeline
         Imputer imputer = new Imputer()
                 .setStrategy("mode")
@@ -69,6 +68,14 @@ public class MLProcess {
                         , lr
                         , rm
                 });
+        Pipeline pipeline1 = new Pipeline().setStages(new PipelineStage[]{
+                indexer
+                , imputer
+                , encoder
+                , assembler
+                , normalizer
+                , rm
+        });
 
 
         //Cross validation
@@ -92,7 +99,7 @@ public class MLProcess {
                 .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
 
         CrossValidator cv_rm = new CrossValidator()
-                .setEstimator(pipeline)
+                .setEstimator(pipeline1)
                 .setEvaluator(new RegressionEvaluator()
                         .setLabelCol("ArrDelay")
                         .setPredictionCol("prediction_rm")
@@ -100,6 +107,7 @@ public class MLProcess {
                 .setEstimatorParamMaps(paramGrid_rm)
                 .setNumFolds(5)  // Use 3+ in practice
                 .setParallelism(2);  // Evaluate up to 2 parameter settings in parallel
+
 
         // Run cross-validation, and choose the best set of parameters.
         CrossValidatorModel cvModel_lr = cv_lr.fit(cleaned);
@@ -111,45 +119,46 @@ public class MLProcess {
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_lr")
                 .setMetricName("rmse");
-        Double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions_lr);
+        double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions_lr);
 
         RegressionEvaluator evaluatorRMSE_rm = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMetricName("rmse");
-        Double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
+        double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
 
         LinearRegressionModel model_lr = (LinearRegressionModel)cvModel_lr.bestModel();
         RandomForestRegressionModel model_rm = (RandomForestRegressionModel)cvModel_lr.bestModel();
 
-        System.out.println("Linear regression best RMSE:");
-        System.out.println(RMSE_lr);
-        System.out.println("Linear regression coefficients:");
-        System.out.println(model_lr.coefficients());
-        System.out.println("Linear regression chosen parameters:");
-        System.out.println("regParam:");
-        System.out.println(model_lr.getRegParam());
-        System.out.println();
+        Logger.log("Linear regression best RMSE:");
+        Logger.log(Double.toString(RMSE_lr));
+        Logger.log("Linear regression coefficients:");
+        Logger.log(model_lr.coefficients().toString());
+        Logger.log("Linear regression chosen parameters:");
+        Logger.log("regParam:");
+        Logger.log(String.valueOf(model_lr.getRegParam()));
 
-        System.out.println("Random Forest best RMSE:");
-        System.out.println(RMSE_rf);
-        System.out.println("Random Forest chosen parameters:");
-        System.out.println("numTrees:");
-        System.out.println(model_rm.getNumTrees());
-        System.out.println("maxDepth:");
-        System.out.println(model_rm.getMaxDepth());
-        System.out.println();
+        Logger.log("Random Forest best RMSE:");
+        Logger.log(String.valueOf(RMSE_rf));
+        Logger.log("Random Forest chosen parameters:");
+        Logger.log("numTrees:");
+        Logger.log(String.valueOf(model_rm.getNumTrees()));
+        Logger.log("maxDepth:");
+        Logger.log(String.valueOf(model_rm.getMaxDepth()));
 
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
         predictions_rm.select("ArrDelay", "prediction_rm").show(10);
 
+
+
         if (RMSE_lr <= RMSE_rf) {
-            return cvModel_lr;
+            predictions_lr.write().format("csv").save(Main.outPath+"predict.csv");
         }
         else {
-            return cvModel_rm;
+            predictions_rm.write().format("csv").save(Main.outPath+"predict.csv");
         }
     }
+
 
 
 }

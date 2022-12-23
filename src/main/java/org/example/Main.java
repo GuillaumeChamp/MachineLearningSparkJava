@@ -2,7 +2,6 @@ package org.example;
 
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
-import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -26,11 +25,12 @@ public class Main {
 
     //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
     public static void main(String[] args) {
-
-        System.out.println("hola");
-
         if (!handleArguments(args)) return;
-        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning").set("spark.executor.memory", "8g");
+        SparkConf conf = new SparkConf().setAppName("FlightDelayLearning")
+                .set("spark.executor.memory", "8g")
+                .set("spark.storage.memoryFraction","1")
+                .set("rdd.compression","true")
+                .set("spark.driver.memory","8g");
         if (local) conf = conf.setMaster("local[2]");
         try {
             new SparkContext(conf);
@@ -49,8 +49,7 @@ public class Main {
             Dataset<Row> test;
             if (Objects.equals(trainingPath, testingPath)) test = cleaned;
             else test = DataProcessing.process(spark,trainingPath,trainingExtension);
-            CrossValidatorModel cv = MLProcess.process(cleaned,test);
-            PerformanceTest.test(cv);
+            MLProcess.process(cleaned, test);
         } catch (Exception e) {
             e.printStackTrace();
             spark.stop();
@@ -77,11 +76,11 @@ public class Main {
         trainingPath = args[0];
         if (!args[1].endsWith(".csv")){
             System.out.println("Testing set in a unsupported format. " + supportedFormat);
-            //Extract extension
-            String[] tamp = args[1].split("\\.");
-            trainingExtension= tamp[tamp.length-1];
             return false;
         }
+        //Extract extension
+        String[] tamp = args[0].split("\\.");
+        trainingExtension= tamp[tamp.length-1];
         if (args.length>=3)
             if (new File(args[2]).isDirectory()) outPath = args[2];
         if (args.length>=4) local=args[3].equals("local");

@@ -13,7 +13,8 @@ public class DataProcessing {
     private static final List<String> toCheck = Arrays.asList("TaxiOut", "TailNum");
 
     protected static Dataset<Row> process(SparkSession spark, String trainingPath, String trainingExtension) throws Exception {
-        Dataset<Row> df = spark.read().option("inferSchema", "true").option("header", "true").csv(trainingPath);
+        Dataset<Row> df = null;
+        if (trainingExtension.equals("csv")) df = spark.read().option("inferSchema", "true").option("header", "true").csv(trainingPath);
         //spark.read().format(trainingExtension).option("inferSchema",true).option("header", "true").load(trainingPath);
 
         //counting to remove
@@ -22,7 +23,7 @@ public class DataProcessing {
         for (String column : toCheck){
             nullValues = df.where(df.col(column).equalTo("NA")).count();
             if (nullValues>0.4*numberOfRows && !dropped.contains(column)) dropped.add(column);
-            System.out.println("with your dataset "+ column +" is also dropped because to many missing values");
+            Logger.log("with your dataset "+ column +" is also dropped because to many missing values");
         }
 
         //Before dropping Cancelled, remove rows with flights that didn't arrive
@@ -42,13 +43,10 @@ public class DataProcessing {
         filtered = filtered.withColumn("CRSDepTime_cat",filtered.col("CRSDepTime").divide(20).cast("int").multiply(20).cast("string"));
 
         filtered.printSchema();
-        df.show(10);
-        filtered.show(10);
-
         filtered.summary();
 
         if (filtered.count()<1300) {
-            System.out.println("After cleaning less than 1300 data remains");
+            Logger.log("After cleaning less than 1300 data remains");
             throw new Exception("Not Enough Data Remaining");
         }
         return filtered;
