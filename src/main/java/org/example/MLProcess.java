@@ -85,7 +85,7 @@ public class MLProcess {
                 .addGrid(rm.numTrees(), new int[] {10, 15})
                 .build();
 
-        CrossValidator cv = new CrossValidator()
+        CrossValidator cv_lr = new CrossValidator()
                 .setEstimator(pipeline)
                 .setEvaluator(new RegressionEvaluator()
                         .setLabelCol("ArrDelay")
@@ -136,6 +136,7 @@ public class MLProcess {
         }
         else {
             return cvModel_rm;
+        }
     }
 
 
