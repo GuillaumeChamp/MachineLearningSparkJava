@@ -124,7 +124,7 @@ public class MLProcess {
             MyLog.log(String.valueOf(model_lr.getParam("regParam")));
         }catch (Exception ignored){}
 
-
+        Dataset<Row> df = null;
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
         if (Main.randomTree) {
             CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
@@ -145,14 +145,15 @@ public class MLProcess {
                 MyLog.log(String.valueOf(model_rm.getParam("maxDepth")));
             }catch (Exception ignored){}
             if (RMSE_lr <= RMSE_rf) {
-                predictions_lr.write().format("csv").save(Main.outPath + "predict.csv");
+                df = predictions_lr.select("ArrDelay", "prediction_lr");
             } else {
-                predictions_rm.write().format("csv").save(Main.outPath + "predict.csv");
+                predictions_rm.select("ArrDelay", "prediction_rm").write().format("csv").save(Main.outPath + "predict.csv");
             }
         } else {
-
-            predictions_lr.write().format("csv").save(Main.outPath + "predict.csv");
+            predictions_lr.select("ArrDelay", "prediction_lr").write().format("csv").save(Main.outPath + "predict.csv");
         }
+        assert df != null;
+        df.write().format("csv").save(Main.outPath + "predict.csv");
     }
 
 }

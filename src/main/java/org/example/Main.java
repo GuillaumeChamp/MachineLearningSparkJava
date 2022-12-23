@@ -87,7 +87,7 @@ public class Main {
         try {
             MyLog.init(outPath);
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            e.printStackTrace();
         }
         testingPath = args[1];
         if (args[1].equals(args[0])){
