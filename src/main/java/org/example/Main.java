@@ -11,8 +11,8 @@ import java.io.IOException;
 import java.util.Objects;
 
 public class Main {
-    protected static String trainingPath;
-    protected static String testingPath;
+    private static String trainingPath;
+    private static String testingPath;
     private final static String schema = "java -jar application.jar trainingPath testingPath OutputPath";
     private final static String supportedFormat = "Supported format are : .csv .json";
     private static String trainingExtension;
@@ -85,7 +85,7 @@ public class Main {
         if (args.length>=4) local=args[3].equals("local");
         if (args.length>=5) randomTree=args[4].equals("randomTree");
         try {
-            createLog();
+            MyLog.init(outPath);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -96,7 +96,4 @@ public class Main {
         return true;
     }
 
-    private static void createLog() throws IOException {
-        MyLog.init(outPath);
-    }
 }
