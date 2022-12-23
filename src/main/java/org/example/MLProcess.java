@@ -1,18 +1,13 @@
 package org.example;
 
+import org.apache.spark.ml.Model;
 import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineStage;
 import org.apache.spark.ml.evaluation.RegressionEvaluator;
-import org.apache.spark.ml.feature.Imputer;
-import org.apache.spark.ml.feature.Normalizer;
-import org.apache.spark.ml.feature.VectorAssembler;
-import org.apache.spark.ml.feature.StringIndexer;
-import org.apache.spark.ml.feature.OneHotEncoder;
+import org.apache.spark.ml.feature.*;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.regression.LinearRegression;
-import org.apache.spark.ml.regression.LinearRegressionModel;
 import org.apache.spark.ml.regression.RandomForestRegressor;
-import org.apache.spark.ml.regression.RandomForestRegressionModel;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.tuning.ParamGridBuilder;
@@ -119,16 +114,16 @@ public class MLProcess {
         double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions_lr);
 
 
-        LinearRegressionModel model_lr = (LinearRegressionModel) cvModel_lr.bestModel();
-        MyLog.log(String.valueOf(((LinearRegressionModel) cvModel_lr.bestModel()).getRegParam()));
+        Model<?> model_lr = cvModel_lr.bestModel();
 
-        MyLog.log("Linear regression best RMSE:");
-        MyLog.log(Double.toString(RMSE_lr));
-        MyLog.log("Linear regression coefficients:");
-        MyLog.log(model_lr.coefficients().toString());
-        MyLog.log("Linear regression chosen parameters:");
-        MyLog.log("regParam:");
-        MyLog.log(String.valueOf(model_lr.getRegParam()));
+        try {
+            MyLog.log("Linear regression best RMSE:");
+            MyLog.log(Double.toString(RMSE_lr));
+            MyLog.log("Linear regression chosen parameters:");
+            MyLog.log("regParam:");
+            MyLog.log(String.valueOf(model_lr.getParam("regParam")));
+        }catch (Exception ignored){}
+
 
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
         if (Main.randomTree) {
@@ -139,14 +134,16 @@ public class MLProcess {
                     .setPredictionCol("prediction_rm")
                     .setMetricName("rmse");
             double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
-            RandomForestRegressionModel model_rm = (RandomForestRegressionModel) cvModel_rm.bestModel();
+            Model<?> model_rm = cvModel_rm.bestModel();
             MyLog.log("Random Forest best RMSE:");
             MyLog.log(String.valueOf(RMSE_rf));
-            MyLog.log("Random Forest chosen parameters:");
-            MyLog.log("numTrees:");
-            MyLog.log(String.valueOf(model_rm.getNumTrees()));
-            MyLog.log("maxDepth:");
-            MyLog.log(String.valueOf(model_rm.getMaxDepth()));
+            try {
+                MyLog.log("Random Forest chosen parameters:");
+                MyLog.log("numTrees:");
+                MyLog.log(String.valueOf(model_rm.getParam("numTrees")));
+                MyLog.log("maxDepth:");
+                MyLog.log(String.valueOf(model_rm.getParam("maxDepth")));
+            }catch (Exception ignored){}
             if (RMSE_lr <= RMSE_rf) {
                 predictions_lr.write().format("csv").save(Main.outPath + "predict.csv");
             } else {
