@@ -71,7 +71,7 @@ public class MLProcess {
                         , assembler
                         , normalizer
                         , lr
-                        , rm
+                        //, rm
                 });
 
 
@@ -109,26 +109,26 @@ public class MLProcess {
         CrossValidatorModel cvModel_lr = cv_lr.fit(cleaned);
         CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
 
-        Dataset<Row> predictions = cvModel_lr.transform(test);
+        Dataset<Row> predictions_lr = cvModel_lr.transform(test);
         Dataset<Row> predictions_rm = cvModel_rm.transform(test);
         RegressionEvaluator evaluatorRMSE_lr = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_lr")
                 .setMetricName("rmse");
-        Double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions);
+        Double RMSE_lr = evaluatorRMSE_lr.evaluate(predictions_lr);
 
         RegressionEvaluator evaluatorRMSE_rm = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMetricName("rmse");
-        Double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions);
+        Double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
 
         System.out.println("Linear regression RMSE:");
         System.out.println(RMSE_lr);
         System.out.println("Random Forest RMSE:");
         System.out.println(RMSE_rf);
 
-        predictions.select("ArrDelay", "prediction_lr").show(10);
+        predictions_lr.select("ArrDelay", "prediction_lr").show(10);
         predictions_rm.select("ArrDelay", "prediction_rm").show(10);
 
         if (RMSE_lr <= RMSE_rf) {
