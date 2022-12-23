@@ -67,7 +67,7 @@ public class MLProcess {
                         , assembler
                         , normalizer
                         , lr
-                        //, rm
+                        , rm
                 });
 
 
