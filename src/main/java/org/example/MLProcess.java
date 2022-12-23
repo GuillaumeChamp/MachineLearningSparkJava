@@ -10,7 +10,9 @@ import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.OneHotEncoder;
 import org.apache.spark.ml.param.ParamMap;
 import org.apache.spark.ml.regression.LinearRegression;
+import org.apache.spark.ml.regression.LinearRegressionModel;
 import org.apache.spark.ml.regression.RandomForestRegressor;
+import org.apache.spark.ml.regression.RandomForestRegressionModel;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.tuning.ParamGridBuilder;
@@ -117,10 +119,26 @@ public class MLProcess {
                 .setMetricName("rmse");
         Double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
 
-        System.out.println("Linear regression RMSE:");
+        LinearRegressionModel model_lr = (LinearRegressionModel)cvModel_lr.bestModel();
+        RandomForestRegressionModel model_rm = (RandomForestRegressionModel)cvModel_lr.bestModel();
+
+        System.out.println("Linear regression best RMSE:");
         System.out.println(RMSE_lr);
-        System.out.println("Random Forest RMSE:");
+        System.out.println("Linear regression coefficients:");
+        System.out.println(model_lr.coefficients());
+        System.out.println("Linear regression chosen parameters:");
+        System.out.println("regParam:");
+        System.out.println(model_lr.getRegParam());
+        System.out.println();
+
+        System.out.println("Random Forest best RMSE:");
         System.out.println(RMSE_rf);
+        System.out.println("Random Forest chosen parameters:");
+        System.out.println("numTrees:");
+        System.out.println(model_rm.getNumTrees());
+        System.out.println("maxDepth:");
+        System.out.println(model_rm.getMaxDepth());
+        System.out.println();
 
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
         predictions_rm.select("ArrDelay", "prediction_rm").show(10);
