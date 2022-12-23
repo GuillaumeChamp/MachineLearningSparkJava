@@ -111,10 +111,10 @@ public class MLProcess {
 
         // Run cross-validation, and choose the best set of parameters.
         CrossValidatorModel cvModel_lr = cv_lr.fit(cleaned);
-        CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
+        //CrossValidatorModel cvModel_rm = cv_rm.fit(cleaned);
 
         Dataset<Row> predictions_lr = cvModel_lr.transform(test);
-        Dataset<Row> predictions_rm = cvModel_rm.transform(test);
+        //Dataset<Row> predictions_rm = cvModel_rm.transform(test);
         RegressionEvaluator evaluatorRMSE_lr = new RegressionEvaluator()
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_lr")
@@ -125,38 +125,38 @@ public class MLProcess {
                 .setLabelCol("ArrDelay")
                 .setPredictionCol("prediction_rm")
                 .setMetricName("rmse");
-        double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
+        //double RMSE_rf = evaluatorRMSE_rm.evaluate(predictions_rm);
 
         LinearRegressionModel model_lr = (LinearRegressionModel)cvModel_lr.bestModel();
         RandomForestRegressionModel model_rm = (RandomForestRegressionModel)cvModel_lr.bestModel();
 
-        Logger.log("Linear regression best RMSE:");
-        Logger.log(Double.toString(RMSE_lr));
-        Logger.log("Linear regression coefficients:");
-        Logger.log(model_lr.coefficients().toString());
-        Logger.log("Linear regression chosen parameters:");
-        Logger.log("regParam:");
-        Logger.log(String.valueOf(model_lr.getRegParam()));
+        MyLog.log("Linear regression best RMSE:");
+        MyLog.log(Double.toString(RMSE_lr));
+        MyLog.log("Linear regression coefficients:");
+        MyLog.log(model_lr.coefficients().toString());
+        MyLog.log("Linear regression chosen parameters:");
+        MyLog.log("regParam:");
+        MyLog.log(String.valueOf(model_lr.getRegParam()));
 
-        Logger.log("Random Forest best RMSE:");
-        Logger.log(String.valueOf(RMSE_rf));
-        Logger.log("Random Forest chosen parameters:");
-        Logger.log("numTrees:");
-        Logger.log(String.valueOf(model_rm.getNumTrees()));
-        Logger.log("maxDepth:");
-        Logger.log(String.valueOf(model_rm.getMaxDepth()));
+        MyLog.log("Random Forest best RMSE:");
+        //MyLog.log(String.valueOf(RMSE_rf));
+        MyLog.log("Random Forest chosen parameters:");
+        MyLog.log("numTrees:");
+        MyLog.log(String.valueOf(model_rm.getNumTrees()));
+        MyLog.log("maxDepth:");
+        MyLog.log(String.valueOf(model_rm.getMaxDepth()));
 
         predictions_lr.select("ArrDelay", "prediction_lr").show(10);
-        predictions_rm.select("ArrDelay", "prediction_rm").show(10);
+        //predictions_rm.select("ArrDelay", "prediction_rm").show(10);
 
 
 
-        if (RMSE_lr <= RMSE_rf) {
+        //if (RMSE_lr <= RMSE_rf) {
             predictions_lr.write().format("csv").save(Main.outPath+"predict.csv");
-        }
-        else {
-            predictions_rm.write().format("csv").save(Main.outPath+"predict.csv");
-        }
+       // }
+        //else {
+         //   predictions_rm.write().format("csv").save(Main.outPath+"predict.csv");
+        //}
     }
 
 

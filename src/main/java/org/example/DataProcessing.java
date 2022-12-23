@@ -16,7 +16,8 @@ public class DataProcessing {
         Dataset<Row> df = null;
         if (trainingExtension.equals("csv")) df = spark.read().option("inferSchema", "true").option("header", "true").csv(trainingPath);
         if (trainingExtension.equals("json")) df = spark.read().json(trainingPath);
-        //spark.read().format(trainingExtension).option("inferSchema",true).option("header", "true").load(trainingPath);
+
+        MyLog.log("starting cleaning");
 
         //counting to remove
         assert df != null;
@@ -25,7 +26,7 @@ public class DataProcessing {
         for (String column : toCheck){
             nullValues = df.where(df.col(column).equalTo("NA")).count();
             if (nullValues>0.4*numberOfRows && !dropped.contains(column)) dropped.add(column);
-            Logger.log("with your dataset "+ column +" is also dropped because to many missing values");
+            MyLog.log("with your dataset "+ column +" is also dropped because to many missing values");
         }
 
         //Before dropping Cancelled, remove rows with flights that didn't arrive
@@ -46,9 +47,10 @@ public class DataProcessing {
         filtered.summary();
 
         if (filtered.count()<1300) {
-            Logger.log("After cleaning less than 1300 data remains");
+            MyLog.log("After cleaning less than 1300 data remains");
             throw new Exception("Not Enough Data Remaining");
         }
+        MyLog.log("End of data cleaning");
         return filtered;
     }
 }

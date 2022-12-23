@@ -9,9 +9,6 @@ import org.apache.spark.sql.SparkSession;
 import java.io.File;
 import java.io.IOException;
 import java.util.Objects;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
 
 public class Main {
     protected static String trainingPath;
@@ -21,7 +18,6 @@ public class Main {
     private static String trainingExtension;
     private static String testingExtension;
     protected static String outPath = "./";
-    protected static Logger log;
     private static boolean local=false;
 
     //To run add the following arguments Path\To\Documents\BD\1998.csv C:\Path\To\Documents\BD\1998.csv
@@ -94,18 +90,12 @@ public class Main {
         }
         testingPath = args[1];
         if (args[1].equals(args[0])){
-            System.out.println("You will use the same set for training and testing. This is not recommended, but it will work.");
-            log.info("You will use the same set for training and testing. This is not recommended, but it will work.");
+            MyLog.log("You will use the same set for training and testing. This is not recommended, but it will work.");
         }
         return true;
     }
 
     private static void createLog() throws IOException {
-        FileHandler fh = new FileHandler(outPath+"MyLogFile.log", false);
-        log = Logger.getLogger("");
-        log.addHandler(fh);
-        SimpleFormatter formatter = new SimpleFormatter();
-        fh.setFormatter(formatter);
-
+        MyLog.init(outPath);
     }
 }
